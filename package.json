@@ -2,7 +2,7 @@
   "name": "get_favicon",
   "version": "1.0.0",
   "description": "Service to get favicon from a website",
-  "main": "server.js",
+  "main": "api/index.js",
   "scripts": {
     "start": "node server.js"
   },
