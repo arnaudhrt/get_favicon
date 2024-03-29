@@ -4,32 +4,43 @@ const port = process.env.PORT || 3000;
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-// Fonction pour récupérer les favicons
+const puppeteer = require("puppeteer");
+
 async function getFavicons(url) {
   try {
-    const { data: html } = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-      },
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2" }); // attend que le réseau soit inactif pendant au moins 500 ms
+
+    const icons = await page.evaluate(() => {
+      const icons = {
+        icon: null,
+        shortcut: null,
+        "apple-touch-icon": null,
+      };
+
+      // Utilise document.querySelectorAll pour sélectionner les éléments souhaités
+      document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach((elem) => {
+        const rel = elem.getAttribute("rel");
+        let href = elem.getAttribute("href");
+        if (href) {
+          // Crée une URL absolue si nécessaire
+          if (!href.includes("://")) {
+            const base = window.location.origin;
+            href = new URL(href, base).href;
+          }
+          // Assigner l'URL de l'icône à la catégorie correspondante
+          icons[rel] = href;
+        }
+      });
+
+      return icons;
     });
-    const $ = cheerio.load(html);
-    const icons = {
-      icon: null,
-      shortcut: null,
-      "apple-touch-icon": null,
-    };
-    $('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').each((i, elem) => {
-      const rel = $(elem).attr("rel");
-      let href = $(elem).attr("href");
-      if (!href.includes("://")) {
-        href = new URL(href, url).href;
-      }
-      // Assigner l'URL de l'icône à la catégorie correspondante, en remplaçant si plusieurs sont trouvées
-      icons[rel] = href;
-    });
+
+    await browser.close();
     return icons;
   } catch (error) {
-    console.error("Error fetching favicons:", error);
+    console.error("Error fetching favicons with Puppeteer:", error);
     throw error;
   }
 }
